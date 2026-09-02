@@ -826,22 +826,28 @@ function monthlyTotals(n){
   }
   return out;
 }
-function sparkline(vals, color){
-  if(!vals.length) return '';
-  var w=240, h=44, pad=5;
-  var max=Math.max.apply(null, vals.concat([1])), min=Math.min.apply(null, vals.concat([0]));
-  var range=(max-min)||1;
-  var pts=vals.map(function(v,i){
-    var x=pad + i*(w-2*pad)/Math.max(1, vals.length-1);
-    var y=h-pad - (v-min)/range*(h-2*pad);
-    return x.toFixed(1)+','+y.toFixed(1);
-  }).join(' ');
-  var last=pts.split(' ').pop();
-  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" preserveAspectRatio="none" role="img" aria-label="monthly income trend">'
-    +'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:'+color+'"/>'
-    +'<circle cx="'+last.split(',')[0]+'" cy="'+last.split(',')[1]+'" r="3" fill="'+color+'" style="fill:'+color+'"/>'
-    +'</svg>';
-}
+  function sparkline(vals, color){
+    // Drop leading/trailing zeros so the line reflects months with actual
+    // income rather than flatlining at the bottom for empty edge months.
+    var s=0, e=vals.length;
+    while(s<e && vals[s]===0) s++;
+    while(e>s && vals[e-1]===0) e--;
+    vals = vals.slice(s, e);
+    if(!vals.length) return '';
+    var w=240, h=44, pad=5;
+    var max=Math.max.apply(null, vals.concat([1])), min=Math.min.apply(null, vals.concat([0]));
+    var range=(max-min)||1;
+    var pts=vals.map(function(v,i){
+      var x = vals.length===1 ? (w-pad) : pad + i*(w-2*pad)/Math.max(1, vals.length-1);
+      var y=h-pad - (v-min)/range*(h-2*pad);
+      return x.toFixed(1)+','+y.toFixed(1);
+    }).join(' ');
+    var last=pts.split(' ').pop();
+    return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" preserveAspectRatio="none" role="img" aria-label="monthly income trend">'
+      +'<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:'+color+'"/>'
+      +'<circle cx="'+last.split(',')[0]+'" cy="'+last.split(',')[1]+'" r="3" fill="'+color+'" style="fill:'+color+'"/>'
+      +'</svg>';
+  }
 function renderSmooth(){
   var n=state.smoothWindow, rows=monthlyTotals(n);
   var ai=rows.reduce(function(s,x){ return s+x.income; },0)/rows.length;
@@ -855,7 +861,7 @@ function renderSmooth(){
   $('smoothSummary').textContent='Across the last '+n+' months you averaged '+money(ai)+' in and '+money(ae)+' out — about '+money(safe)+' left to spend each month.';
   var days=new Date(+$('month').value.slice(0,4), +$('month').value.slice(5,7), 0).getDate();
   $('smoothSpark').innerHTML = sparkline(rows.map(function(x){ return x.income; }), 'var(--grad-a)')
-    + '<p class="muted" style="margin-top:6px">Monthly income trend (ending '+$('month').value+'). Current month has '+days+' days.</p>';
+    + '<p class="muted" style="margin-top:6px">Monthly income trend (ending '+$('month').value+'). Selected month has '+days+' days.</p>';
 }
 $('smoothWindow').onchange=function(){ state.smoothWindow=+($('smoothWindow').value)||6; save(); renderSmooth(); };
 
